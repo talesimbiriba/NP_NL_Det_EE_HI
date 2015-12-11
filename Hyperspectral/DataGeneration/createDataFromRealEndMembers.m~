@@ -1,0 +1,119 @@
+function [ Y, M, a] = createDataFromRealEndMembers( numOfEndmembers, modelStr, numOfSamples, SNR, abundanceVector, gamma)
+%
+%   [ Y, M, a] = createDataFromRealEndMembers( numOfEndmembers, modelStr,
+%   numOfSamples, noiseVar, abundanceVector, gamma)
+%
+%   return the "image" Y built with the "M" mixing matrix and abundances
+%   "a"
+%   
+%
+%   numOfEndmembers = number of endmembers
+%   modelStr = 'linear','bilinear', ...
+%   a = vector of the same size as numOfEndmembers (default =
+%   randomic)
+%   numOfSamples = 100 (default)
+%   noiseVar  =  0.01 (default)
+%
+%
+%
+%   Example:
+%   createDataFromRealEndMembers( 3, 'bilinear', 1,
+%       0.0001, [], 0.9)
+%
+
+if nargin ~= 6
+    disp('Error: the function createDataFromRealEndMembers must have 6 input args.');
+    return
+end
+
+if (numOfEndmembers < 1 || numOfEndmembers >5 )
+    disp('Error: numOfEndmembers must be in the interval [1,5]');
+    return;
+end
+
+if isempty(gamma)
+    gamma = 0.9;
+end
+
+if isempty(abundanceVector)
+    a = rand(numOfEndmembers);
+    a = a/sum(a);
+else
+    a = abundanceVector;
+    if (length(a) > numOfEndmembers)
+        a = a(1:numOfEndmembers);
+    end
+end
+
+if isempty(numOfSamples)
+    numOfSamples = 100;
+end
+
+
+
+
+
+load endmember_samples/bare_soil_5samples_no_header.txt
+load endmember_samples/bilberry_vegetation_Konguta_3samples_NoHeader.txt
+load endmember_samples/cotton_grass_2samples_NoHeader.txt
+load endmember_samples/dense_grasses_6samples_NoHeader.txt
+load endmember_samples/Siggefora_Granit_Rock_NoHeader.txt
+
+
+
+Mcell = {bare_soil_5samples_no_header(:,end-1), bilberry_vegetation_Konguta_3samples_NoHeader(:,end-1), cotton_grass_2samples_NoHeader(:,end-1),dense_grasses_6samples_NoHeader(:,end-1),Siggefora_Granit_Rock_NoHeader(:,end-1)};
+numOfBands = length(Mcell{1});
+
+clear bare_soil_5samples_no_header bilberry_vegetation_Konguta_3samples_NoHeader cotton_grass_2samples_NoHeader dense_grasses_6samples_NoHeader Siggefora_Granit_Rock_NoHeader;
+
+Y=zeros(numOfBands,numOfSamples);
+
+M = Mcell{1};
+if numOfEndmembers >1,
+    for i=2:numOfEndmembers,
+        M = [M,Mcell{i}];
+    end
+end
+
+if isempty(SNR)
+    noiseVar = 0.0001;
+else
+    noiseVar = noisePowerSNR(M, SNR);
+end
+
+
+
+if (strcmp(lower(modelStr),'linear'))
+    for i=1:numOfSamples,
+        Y(:,i) = M*a + randn(numOfBands,1)*sqrt(noiseVar);
+    end
+end
+
+
+if (strcmp(lower(modelStr),'bilinear'))
+    
+    linPart = M*a;
+    normK = sqrt( (linPart'*linPart)/   ;
+    K = sqrt((sigL'*sigL)/(sigNL'*sigNL));
+    if numOfEndmembers >1,    
+        count = 1;
+        for i=1:numOfEndmembers-1,
+            for j=1+i:numOfEndmembers;
+%           for i=1:numOfEndmembers,
+%               for j=i:numOfEndmembers;                
+                M_bilin(:,count) = M(:,i).*M(:,j);
+                a_bilin(count,1) = a(i)*a(j);
+                count = count+1;
+            end
+        end
+    end
+    for i=1:numOfSamples,
+        Y(:,i) = linPart + gamma*(M_bilin*a_bilin);
+        Y(:,i) = normK*Y(:,i) + randn(numOfBands,1)*sqrt(noiseVar);
+    end
+        
+end
+
+
+end
+

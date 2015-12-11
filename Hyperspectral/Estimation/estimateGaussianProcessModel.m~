@@ -1,0 +1,73 @@
+function [ modelPar ] = estimateGaussianProcessModel( y, X, kernelType, modelPar0, lb,ub )
+%function [ modelPar ] = estimateGaussianProcessModel( y, X, modelPar0, lb,ub )
+%   
+%   Estimates the set of parameters modelPar = [sigma_f, l, sigma_n] for a
+%   given observation y and input data X. Optional inputs are the kernel 
+%   type 'kernelType', incial values for the kernel parameters 'modelPar0',
+%   lower bound 'lb' and upper bound 'ub' for the optimizer.
+%
+%   KernelType is a string with the name of the kernel type. The
+%   possibilities are:  'sqrExponential', ... (other types not implemented
+%   yet).
+%
+
+
+if nargin < 6
+    ub = [];
+    if nargin < 5
+        lb = [];
+        if nargin < 4
+            modelPar0 = [];
+            if nargin < 3
+                kernelType =[];
+            end
+        end
+    end
+end
+
+if isempty(kernelType)
+    kernelType = 'sqrExponential';
+end
+
+if isempty(modelPar0)
+    modelPar0 = rand(3,1);
+end
+
+if isempty(lb)
+    % lower bound constraint
+    %lb = [1; 0.5; 0.00001];
+    lb = [0.00001; 0.00001; 0.00001];
+end
+if isempty(ub)
+    % upper bound constraint.
+    ub = [inf; 100; 1];
+end
+
+% X = M';
+
+ncolX = size(X,2);
+nlinY = size(y,1);
+
+if (ncolX ~= nlinY)
+
+
+% function to be optimized
+func = @(modelPar)(covFuncCalc(modelPar,X,y,kernelType));
+
+% check if matlabpool is open for parallel runing.
+isOpen = matlabpool('size') > 0;
+
+if (isOpen)
+    % seting fmincon optimizer
+    %options = optimset('Algorithm','interior-point','UseParallel','always');
+    options = optimset('Algorithm','interior-point','UseParallel','never');
+    %options = optimset('Algorithm','sqp');
+    %fmincon(func,x0,[],[],[],[],lb,ub,options)
+else
+    options = optimset('Algorithm','interior-point','UseParallel','always');
+end
+modelPar = fmincon(func,modelPar0,[],[],[],[],lb,ub,[],options);
+
+
+end
+

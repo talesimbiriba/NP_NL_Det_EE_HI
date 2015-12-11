@@ -1,0 +1,155 @@
+function [ Y, M, a, noiseVar,nlDegree,K] = createDecimatedDataFromRealEndMembersSNR( numOfEndmembers, modelStr, numOfSamples, SNR, abundanceVector, nlDegree, dF)
+%
+%   [ Y, M, a] = createDacimatedDataFromRealEndMembers( numOfEndmembers, modelStr,
+%   numOfSamples, noiseVar, abundanceVector, gamma, dF)
+%
+%   return the "image" Y built with the "M" mixing matrix and abundances
+%   "a"
+%   
+%
+%   numOfEndmembers = number of endmembers
+%   modelStr = 'linear','bilinear', ...  
+%   numOfSamples = 100 (default)
+%   noiseVar  =  0.01 (default)
+%   a = vector of the same size as numOfEndmembers (default =
+%   randomic)
+%   gamma = 0.9 (default)
+%   dF = 1; (default decimation factor - no decimation)
+%
+%   Example:
+%   createDataFromRealEndMembers( 3, 'bilinear', 1,
+%       0.0001, [], 0.9)
+%
+
+if nargin ~= 7
+    error('Error: the function createDataFromRealEndMembers must have 7 input args.');
+end
+
+if (numOfEndmembers < 1 || numOfEndmembers >6 )
+    disp('Error: numOfEndmembers must be in the interval [1,6]');
+    return;
+end
+
+if isempty(nlDegree)
+    nlDegree = 0.5;
+end
+
+if isempty(numOfSamples)
+    numOfSamples = 100;
+end
+
+aMat = false;
+if isempty(abundanceVector)
+    aMat = true;
+    A = rand(numOfEndmembers,numOfSamples);
+    for i=1:numOfSamples,
+        A(:,i) = A(:,i)/sum(A(:,i));
+    end
+%     a = rand(numOfEndmembers);
+%     a = a/sum(a);
+else
+    a = abundanceVector;
+    if (length(a) > numOfEndmembers)
+        a = a(1:numOfEndmembers);
+    end
+end
+
+
+if isempty(dF)
+    dF = 1;
+end
+
+nlDegree = 0;
+
+%load JY Endmember Matrix
+load MPlus;
+%M=MPlus(:,1:3);
+MPlus = MPlus(1:dF:end,:);
+
+numOfBands = size(MPlus,1);
+
+Y=zeros(numOfBands,numOfSamples);
+% 
+% M = Mcell{1};
+% if numOfEndmembers >1,
+%     for i=2:numOfEndmembers,
+%         M = [M,Mcell{i}];
+%     end
+% end
+
+M = MPlus(:,1:numOfEndmembers);
+
+if isempty(SNR)
+    noiseVar = 0.001;
+else
+    noiseVar = noisePowerSNR(M, SNR);
+end
+
+
+
+
+if (strcmp(lower(modelStr),'linear'))
+    if (aMat)
+        Y = M*A + randn(numOfBands,numOfSamples)*sqrt(noiseVar);
+        a =A;
+    else
+        for i=1:numOfSamples,
+            Y(:,i) = M*a + randn(numOfBands,1)*sqrt(noiseVar);
+        end
+    end
+    K =1;
+end
+
+
+if (strcmp(lower(modelStr),'bilinear'))
+    if aMat
+        a = A;
+    end
+    linPart = M*a;
+    nonlinPart = zeros(numOfBands, numOfSamples);
+    %compute the nonlinear contributions
+    for n=1:numOfSamples,                        
+        if numOfEndmembers >1,    
+            count = 1;
+            for i=1:numOfEndmembers-1,
+                for j=1+i:numOfEndmembers;
+                    M_bilin(:,count) = M(:,i).*M(:,j);
+                    a_bilin(count,1) = a(i,n)*a(j,n);
+                    count = count+1;
+                end
+            end
+        end
+        nonlinPart(:,n) = (M_bilin*a_bilin);              
+    end
+    % Sample mean of the Energies
+    El = trace(linPart'*linPart)/numOfSamples;
+    Enl = trace(nonlinPart'*nonlinPart)/numOfSamples;
+    Elnl = trace(linPart'*nonlinPart)/numOfSamples;
+    
+    gamma = 
+    % compute the mean K
+    K = ( -2*gamma*Elnl + sqrt( 4*(gamma^2)*(Elnl^2) -4*El*( (gamma^2)*Enl-El) ) )/ (2*El);
+    
+    % generate the noisy signal.
+    Y = K*linPart + gamma*nonlinPart + randn(numOfBands,numOfSamples)*sqrt(noiseVar);    
+    % compute the nonlinearity degree.
+    nlDegree =  (2*K*gamma*Elnl + (gamma^2)*Enl)/( (K^2)*El + 2*K*gamma*Elnl + (gamma^2)*Enl );
+end
+
+
+if (strcmp(lower(modelStr),'pnmm'))
+    if aMat
+        a= A;        
+    end
+    linPart = M*a;
+    nonlinPart = linPart.*linPart;
+    El = trace(linPart'*linPart)/numOfSamples;
+    Enl = trace(nonlinPart'*nonlinPart)/numOfSamples;
+    Elnl = trace(linPart'*nonlinPart)/numOfSamples;
+    K = ( -2*gamma*Elnl + sqrt( 4*(gamma^2)*(Elnl^2) -4*El*( (gamma^2)*Enl-El) ) )/ (2*El);
+    Y = K*linPart + gamma*nonlinPart + randn(numOfBands,numOfSamples)*sqrt(noiseVar);    
+    nlDegree =  (2*K*gamma*Elnl + (gamma^2)*Enl)/( (K^2)*El + 2*K*gamma*Elnl + (gamma^2)*Enl );
+end
+    
+end
+

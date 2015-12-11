@@ -1,0 +1,14 @@
+function a  = unconstrainedLeastSquaresEstimation( y, M )
+%function a  = unconstrainedLeastSquaresEstimation( y, M )
+%   
+%   return the model parameters "a" using unconstrained Least-Squares
+%
+%   inputs: the Lx1 observated pixel "y"
+%
+
+
+a  = (M'*M)\M'*y;
+
+
+end
+

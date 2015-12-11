@@ -1,0 +1,15 @@
+function abundanceVector = estimateAbundancesUsingLeastSquares(yPixel, mixingMatrix, respctConstrains  )
+% abundanceVector = estimateAbundancesUsingLeastSquares(yPixel,
+% mixingMatrix, respctConstrains  )
+% 
+%   return the abundances "abundanceVector" using Least-Squares.
+%
+%   arguments: the pixel "yPixel", the Mixing Matix "mixingMatix" and the
+%   respect constrains
+%   
+
+
+
+
+end
+
